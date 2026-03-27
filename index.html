@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RWF Precision Tracker</title>
+    <title>RWF Pro Dashboard</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -12,8 +12,8 @@
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .boss-marker { transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .timeline-glow { box-shadow: 0 0 20px rgba(249, 115, 22, 0.1); }
+        .progress-lane { transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .boss-tick { position: absolute; width: 4px; height: 100%; background: rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
@@ -28,7 +28,6 @@
             { name: "March on Quel'Danas", bosses: ["Belo'ran", "Midnight Falls"], color: "from-orange-500 to-red-700" }
         ];
 
-        // kills are stored in TOTAL MINUTES from global start
         const TEAMS = [
             { name: "Liquid", region: "NA", offset: 0, color: "#ef4444", kills: [485, 842, 1320, 1845, 2700, 3122, 4080, 4805, 5700] },
             { name: "Echo", region: "EU", offset: 960, color: "#3b82f6", kills: [1020, 1380, 1745, 2200, 2900, 3300, 4200, 4950, 5820] },
@@ -45,88 +44,98 @@
         function App() {
             const [isElapsed, setIsElapsed] = useState(true);
             const allBosses = RAIDS.flatMap(r => r.bosses);
-            const maxMinutes = 7200; // 5 days
+            const maxMinutes = 7200; 
 
             return (
                 <div className="max-w-6xl mx-auto p-4 md:p-10">
-                    <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-                        <div className="text-center md:text-left">
-                            <h1 className="text-4xl font-black tracking-tight text-white italic underline decoration-orange-500 decoration-4 underline-offset-8">RWF LIVE</h1>
-                        </div>
-                        <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800 shadow-2xl">
-                            <button onClick={() => setIsElapsed(false)} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${!isElapsed ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>CLOCK TIME</button>
-                            <button onClick={() => setIsElapsed(true)} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${isElapsed ? 'bg-orange-600 text-white' : 'text-slate-500'}`}>ELAPSED (FAIR)</button>
+                    <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
+                        <h1 className="text-3xl font-black tracking-tight text-white italic">RWF <span className="text-slate-500 underline decoration-orange-500">LIVE</span></h1>
+                        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                            <button onClick={() => setIsElapsed(false)} className={`px-5 py-1.5 rounded-lg text-xs font-black transition-all ${!isElapsed ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>CLOCK TIME</button>
+                            <button onClick={() => setIsElapsed(true)} className={`px-5 py-1.5 rounded-lg text-xs font-black transition-all ${isElapsed ? 'bg-orange-600 text-white' : 'text-slate-500'}`}>ELAPSED</button>
                         </div>
                     </header>
 
-                    {/* TOP VISUAL TIMELINE BOX */}
-                    <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-8 mb-12 timeline-glow relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500/20 to-transparent"></div>
+                    {/* IMPROVED TOP LIVE BOX: TEAM LANES */}
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 mb-12 shadow-2xl relative overflow-hidden">
+                        <div className="flex justify-between text-[10px] font-black text-slate-700 uppercase mb-4 px-2">
+                            <span>Start</span>
+                            <span>Day 2</span>
+                            <span>Day 3</span>
+                            <span>Day 4</span>
+                            <span>Day 5</span>
+                        </div>
                         
-                        {/* Day vertical guides */}
-                        {[1440, 2880, 4320, 5760].map(m => (
-                            <div key={m} className="absolute h-full border-l border-slate-800/50 top-0" style={{ left: `${(m/maxMinutes)*100}%` }}>
-                                <span className="absolute bottom-2 left-2 text-[9px] font-black text-slate-700 uppercase">Day {m/1440 + 1}</span>
-                            </div>
-                        ))}
+                        <div className="space-y-6">
+                            {TEAMS.map((team) => {
+                                const lastKillMins = team.kills[team.kills.length - 1];
+                                const currentMins = isElapsed ? (lastKillMins - team.offset) : lastKillMins;
+                                const totalWidth = (currentMins / maxMinutes) * 100;
 
-                        {TEAMS.map((team, tIdx) => (
-                            <div key={team.name} className="relative h-16 flex items-center mb-4 last:mb-0">
-                                <div className="absolute w-full h-px bg-slate-800"></div>
-                                <div className="absolute -left-2 translate-x-[-100%] pr-4 text-right">
-                                    <span className="text-[10px] font-black uppercase" style={{color: team.color}}>{team.name}</span>
-                                </div>
-                                {team.kills.map((mins, i) => {
-                                    const calcMins = isElapsed ? (mins - team.offset) : mins;
-                                    const xPos = (calcMins / maxMinutes) * 100;
-                                    if (xPos < 0) return null;
-                                    return (
-                                        <div key={i} className="boss-marker absolute group cursor-pointer" style={{ left: `${xPos}%` }}>
-                                            <div className="w-4 h-4 rounded-full border-2 border-slate-950 shadow-lg" style={{ backgroundColor: team.color }}></div>
-                                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white text-slate-950 px-2 py-1 rounded text-[9px] font-black opacity-0 group-hover:opacity-100 whitespace-nowrap z-50 transition-all">
-                                                {allBosses[i]}: {formatPreciseTime(calcMins)}
-                                            </div>
+                                return (
+                                    <div key={team.name} className="relative">
+                                        <div className="flex justify-between items-end mb-1">
+                                            <span className="text-xs font-black tracking-widest uppercase" style={{color: team.color}}>{team.name}</span>
+                                            <span className="mono text-[10px] text-slate-400 font-bold">{formatPreciseTime(currentMins)}</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        ))}
+                                        <div className="h-4 bg-slate-950 rounded-full border border-slate-800 p-0.5 overflow-hidden relative">
+                                            <div 
+                                                className="h-full rounded-full transition-all duration-1000 ease-out flex items-center justify-end pr-2"
+                                                style={{ width: `${totalWidth}%`, backgroundColor: team.color, boxShadow: `0 0 15px ${team.color}44` }}
+                                            >
+                                                <div className="w-1 h-1 bg-white rounded-full animate-pulse shadow-lg"></div>
+                                            </div>
+                                            
+                                            {/* Vertical Ticks for each Boss Kill */}
+                                            {team.kills.map((mins, i) => {
+                                                const tickPos = isElapsed ? (mins - team.offset) : mins;
+                                                const x = (tickPos / maxMinutes) * 100;
+                                                if (x < 0) return null;
+                                                return <div key={i} className="boss-tick" style={{ left: `${x}%` }}></div>
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    {/* DETAILED RAID LIST */}
-                    <div className="space-y-10">
+                    {/* RAID LISTINGS */}
+                    <div className="space-y-12">
                         {RAIDS.map((raid) => (
                             <div key={raid.name} className="space-y-4">
-                                <div className={`h-1 w-24 bg-gradient-to-r ${raid.color} rounded-full`}></div>
-                                <h2 className="text-2xl font-black tracking-tight">{raid.name}</h2>
+                                <h2 className={`text-lg font-black tracking-widest uppercase py-1 px-4 border-l-4 rounded bg-gradient-to-r ${raid.color} text-white inline-block`}>
+                                    {raid.name}
+                                </h2>
                                 
-                                <div className="grid grid-cols-1 gap-3">
+                                <div className="grid grid-cols-1 gap-2">
                                     {raid.bosses.map((boss) => {
                                         const gIdx = allBosses.indexOf(boss);
+                                        const winner = TEAMS.reduce((a, b) => (a.kills[gIdx] - a.offset < b.kills[gIdx] - b.offset ? a : b));
+                                        
                                         return (
-                                            <div key={boss} className="flex flex-col lg:flex-row items-center justify-between p-4 bg-slate-900/40 border border-slate-800 rounded-2xl gap-4 hover:bg-slate-800/40 transition-all">
-                                                <div className="flex items-center gap-4 min-w-[200px]">
-                                                    <span className="mono text-xs font-bold text-slate-600">0{gIdx + 1}</span>
+                                            <div key={boss} className="flex flex-col lg:flex-row items-center justify-between p-4 bg-slate-900/30 border border-slate-800 rounded-xl gap-4 hover:border-slate-600 transition-all">
+                                                <div className="flex items-center gap-4 lg:w-1/4">
+                                                    <span className="mono text-[10px] text-slate-500">{gIdx + 1}</span>
                                                     <span className="font-bold text-slate-200">{boss}</span>
                                                 </div>
 
-                                                <div className="flex flex-wrap justify-center gap-3">
+                                                <div className="flex flex-wrap justify-center gap-2 lg:w-1/2">
                                                     {TEAMS.map(team => {
                                                         const time = isElapsed ? (team.kills[gIdx] - team.offset) : team.kills[gIdx];
+                                                        const isWinner = team.name === winner.name;
                                                         return (
-                                                            <div key={team.name} className="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 min-w-[120px] text-center">
-                                                                <div className="text-[9px] font-black uppercase tracking-widest mb-1" style={{color: team.color}}>{team.name}</div>
+                                                            <div key={team.name} className={`px-4 py-2 rounded-lg border ${isWinner ? 'border-slate-600 bg-slate-800/50' : 'border-slate-800 bg-slate-950'} min-w-[130px] text-center`}>
+                                                                <div className="text-[9px] font-black uppercase" style={{color: team.color}}>{team.name}</div>
                                                                 <div className="mono text-xs font-bold">{formatPreciseTime(time)}</div>
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
 
-                                                <div className="lg:text-right min-w-[120px]">
-                                                    <div className="text-[10px] text-slate-500 font-black uppercase tracking-tighter">Fastest Kill</div>
-                                                    <div className="text-sm font-bold text-emerald-400">
-                                                        {TEAMS.reduce((a, b) => (a.kills[gIdx] - a.offset < b.kills[gIdx] - b.offset ? a : b)).name}
-                                                    </div>
+                                                <div className="lg:w-1/4 lg:text-right">
+                                                    <span className="text-[10px] text-slate-500 font-black uppercase">Winner</span>
+                                                    <div className="text-sm font-black italic" style={{color: winner.color}}>{winner.name}</div>
                                                 </div>
                                             </div>
                                         );
