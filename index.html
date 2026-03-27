@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RWF Live - Server Offset Edition</title>
+    <title>RWF - Time Since Release</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -12,8 +12,6 @@
     <style>
         body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .boss-tick { position: absolute; width: 2px; height: 100%; background: rgba(255,255,255,0.2); z-index: 10; }
-        .progress-bar { transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 <body>
@@ -22,85 +20,90 @@
     <script type="text/babel">
         const { useState } = React;
 
-        // --- CONFIGURATION OPTION ---
-        // Enter the time servers actually came up (in minutes from 00:00 Tuesday)
-        // Example: 08:00 = 480 | 13:00 = 780
-        const REGION_CONFIG = {
-            NA: { serverUp: 780 }, // Servers were up at 13:00 (1:00 PM)
-            EU: { serverUp: 2400 } // Tuesday 00:00 + 1d + 16h (adjust as needed)
+        // --- ADMIN CONFIG ---
+        // Input format "HH:MM" (Military Time)
+        const SERVER_START_TIMES = {
+            NA: "08:30", // NA Servers Live
+            EU: "23:00"  // EU Servers Live (Rel. to NA Start Day)
+        };
+
+        const timeStringToMins = (str) => {
+            const [h, m] = str.split(':').map(Number);
+            return (h * 60) + m;
+        };
+
+        const REGION_OFFSETS = {
+            NA: timeStringToMins(SERVER_START_TIMES.NA),
+            EU: timeStringToMins(SERVER_START_TIMES.EU)
         };
 
         const RAIDS = [
-            { name: "The Dreamrift", bosses: ["Chimarerus"], color: "from-emerald-500 to-teal-700" },
-            { name: "The Voidspire", bosses: ["Imperator Averzian", "Vorasius", "Fallen-King Salhadaar", "Vaelgot & Ezzorak", "Lightblind Vanguard", "Crown of the Cosmos"], color: "from-purple-600 to-indigo-900" },
-            { name: "March on Quel'Danas", bosses: ["Belo'ran", "Midnight Falls"], color: "from-orange-500 to-red-700" }
+            { name: "The Dreamrift", bosses: ["Chimarerus"], color: "emerald-500" },
+            { name: "The Voidspire", bosses: ["Imperator Averzian", "Vorasius", "Fallen-King Salhadaar", "Vaelgot & Ezzorak", "Lightblind Vanguard", "Crown of the Cosmos"], color: "purple-500" },
+            { name: "March on Quel'Danas", bosses: ["Belo'ran", "Midnight Falls"], color: "orange-500" }
         ];
 
         const TEAMS = [
-            { name: "Liquid", region: "NA", color: "#ef4444", kills: [900, 1100, 1400, 1900, 2800, 3200, 4100, 4900, 5800] },
-            { name: "Echo", region: "EU", color: "#3b82f6", kills: [2500, 2700, 3100, 3500, 4200, 4500, 5200, 5900, 6400] },
-            { name: "Method", region: "EU", color: "#fbbf24", kills: [2550, 2800, 3200, 3700, 4400, 4700, 5400, 6100, 6600] }
+            { name: "Liquid", region: "NA", color: "#ef4444", kills: [600, 1100, 1400, 1900, 2800, 3200, 4100, 4900, 5800] },
+            { name: "Echo", region: "EU", color: "#3b82f6", kills: [1500, 1600, 1850, 2400, 3100, 3500, 4200, 4950, 6000] },
+            { name: "Method", region: "EU", color: "#fbbf24", kills: [1520, 1650, 1900, 2500, 3200, 3600, 4400, 5100, 6200] }
         ];
 
-        const formatPreciseTime = (totalMinutes) => {
-            if (totalMinutes < 0) return "--:--";
+        const formatDuration = (totalMinutes) => {
+            if (totalMinutes < 0) return "Not Started";
             const d = Math.floor(totalMinutes / 1440);
             const h = Math.floor((totalMinutes % 1440) / 60);
             const m = totalMinutes % 60;
-            return `${d > 0 ? d + 'd ' : ''}${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m`;
+            return `${d > 0 ? d + 'd ' : ''}${h}h ${m}m`;
         };
 
         function App() {
-            const [isElapsed, setIsElapsed] = useState(true);
+            const [mode, setMode] = useState('release'); // 'global' or 'release'
             const allBosses = RAIDS.flatMap(r => r.bosses);
-            const maxTimelineWindow = 7200; 
 
             return (
-                <div className="max-w-6xl mx-auto p-4 md:p-10">
-                    <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 border-b border-slate-800 pb-8">
+                <div className="max-w-5xl mx-auto p-6 md:p-12">
+                    <header className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-slate-800 pb-10">
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight text-white italic">RWF <span className="text-orange-500">2026</span></h1>
-                            <div className="flex gap-4 mt-2">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">NA Open: <span className="text-slate-300">{formatPreciseTime(REGION_CONFIG.NA.serverUp)}</span></span>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">EU Open: <span className="text-slate-300">{formatPreciseTime(REGION_CONFIG.EU.serverUp)}</span></span>
+                            <h1 className="text-4xl font-black tracking-tighter italic text-white uppercase">
+                                RWF <span className="text-orange-600">Tracker</span>
+                            </h1>
+                            <div className="flex gap-4 mt-3">
+                                {Object.entries(SERVER_START_TIMES).map(([reg, time]) => (
+                                    <div key={reg} className="bg-slate-900 px-3 py-1 rounded border border-slate-800">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase mr-2">{reg} Live:</span>
+                                        <span className="mono text-[10px] text-orange-400 font-bold">{time}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-                            <button onClick={() => setIsElapsed(false)} className={`px-5 py-2 rounded-lg text-xs font-black transition-all ${!isElapsed ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>CLOCK TIME</button>
-                            <button onClick={() => setIsElapsed(true)} className={`px-5 py-2 rounded-lg text-xs font-black transition-all ${isElapsed ? 'bg-orange-600 text-white' : 'text-slate-500'}`}>ELAPSED</button>
+
+                        <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800 shadow-2xl">
+                            <button onClick={() => setMode('global')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${mode === 'global' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-500'}`}>GLOBAL TIME</button>
+                            <button onClick={() => setMode('release')} className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${mode === 'release' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500'}`}>TIME SINCE RELEASE</button>
                         </div>
                     </header>
 
-                    {/* TOP LIVE LANES */}
-                    <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-8 mb-12 shadow-inner relative">
-                        <div className="space-y-8">
+                    {/* TOP VISUAL BAR */}
+                    <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-8 mb-16 relative overflow-hidden">
+                        <div className="space-y-10">
                             {TEAMS.map((team) => {
                                 const lastKill = team.kills[team.kills.length - 1];
-                                const serverUp = REGION_CONFIG[team.region].serverUp;
-                                const displayMins = isElapsed ? (lastKill - serverUp) : lastKill;
-                                const totalWidth = (displayMins / maxTimelineWindow) * 100;
+                                const offset = REGION_OFFSETS[team.region];
+                                const displayMins = mode === 'release' ? (lastKill - offset) : lastKill;
+                                const progressWidth = (displayMins / 6000) * 100;
 
                                 return (
-                                    <div key={team.name} className="relative">
+                                    <div key={team.name} className="relative group">
                                         <div className="flex justify-between items-center mb-2 px-1">
-                                            <div className="flex items-center gap-2">
-                                                <span className="w-2 h-2 rounded-full" style={{backgroundColor: team.color}}></span>
-                                                <span className="text-sm font-black uppercase tracking-widest">{team.name}</span>
-                                            </div>
-                                            <span className="mono text-xs font-bold text-slate-400">{formatPreciseTime(displayMins)}</span>
+                                            <span className="text-xs font-black uppercase tracking-[0.2em]" style={{color: team.color}}>{team.name}</span>
+                                            <span className="mono text-[10px] font-bold text-slate-400">{formatDuration(displayMins)}</span>
                                         </div>
-                                        <div className="h-6 bg-black/40 rounded-full border border-slate-800 p-1 relative overflow-hidden">
+                                        <div className="h-4 bg-black rounded-full border border-slate-800 p-0.5 overflow-hidden">
                                             <div 
-                                                className="progress-bar h-full rounded-full relative z-0 shadow-lg"
-                                                style={{ width: `${Math.max(0, totalWidth)}%`, backgroundColor: team.color }}
+                                                className="h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+                                                style={{ width: `${Math.max(0, progressWidth)}%`, backgroundColor: team.color }}
                                             />
-                                            {/* Boss Ticks */}
-                                            {team.kills.map((mins, i) => {
-                                                const tickTime = isElapsed ? (mins - serverUp) : mins;
-                                                const x = (tickTime / maxTimelineWindow) * 100;
-                                                if (x < 0) return null;
-                                                return <div key={i} className="boss-tick" style={{ left: `${x}%` }}></div>
-                                            })}
                                         </div>
                                     </div>
                                 );
@@ -108,48 +111,46 @@
                         </div>
                     </div>
 
-                    {/* BOSS BREAKDOWN */}
-                    <div className="space-y-12">
+                    {/* BOSS ROWS */}
+                    <div className="space-y-16">
                         {RAIDS.map((raid) => (
-                            <div key={raid.name} className="space-y-6">
-                                <h2 className={`text-sm font-black tracking-[0.3em] uppercase py-2 px-6 border border-slate-700 rounded-full bg-slate-900 text-slate-300 inline-block`}>
+                            <div key={raid.name} className="relative">
+                                <h2 className={`text-[10px] font-black tracking-[0.4em] uppercase mb-6 text-${raid.color} opacity-80`}>
                                     {raid.name}
                                 </h2>
                                 
-                                <div className="grid grid-cols-1 gap-3">
+                                <div className="grid grid-cols-1 gap-4">
                                     {raid.bosses.map((boss) => {
                                         const gIdx = allBosses.indexOf(boss);
                                         const winner = TEAMS.reduce((a, b) => {
-                                            const aElapsed = a.kills[gIdx] - REGION_CONFIG[a.region].serverUp;
-                                            const bElapsed = b.kills[gIdx] - REGION_CONFIG[b.region].serverUp;
-                                            return aElapsed < bElapsed ? a : b;
+                                            const aVal = a.kills[gIdx] - REGION_OFFSETS[a.region];
+                                            const bVal = b.kills[gIdx] - REGION_OFFSETS[b.region];
+                                            return aVal < bVal ? a : b;
                                         });
 
                                         return (
-                                            <div key={boss} className="flex flex-col lg:flex-row items-center bg-slate-900/20 border border-slate-800/60 rounded-2xl p-4 gap-6">
+                                            <div key={boss} className="flex flex-col lg:flex-row items-center bg-slate-900/20 border border-slate-800 rounded-2xl p-5 gap-6 hover:bg-slate-800/30 transition-all">
                                                 <div className="lg:w-1/4">
-                                                    <div className="text-[10px] font-bold text-slate-600 mb-1">BOSS {gIdx + 1}</div>
-                                                    <div className="font-bold text-lg leading-tight">{boss}</div>
+                                                    <div className="text-[9px] font-black text-slate-600 mb-1">OBJECTIVE {gIdx + 1}</div>
+                                                    <div className="font-black text-lg text-slate-200 uppercase tracking-tight leading-none">{boss}</div>
                                                 </div>
 
-                                                <div className="flex flex-1 justify-center gap-4 w-full">
+                                                <div className="flex-1 flex gap-3 w-full">
                                                     {TEAMS.map(team => {
-                                                        const serverUp = REGION_CONFIG[team.region].serverUp;
-                                                        const time = isElapsed ? (team.kills[gIdx] - serverUp) : team.kills[gIdx];
-                                                        const isWinner = team.name === winner.name;
-                                                        
+                                                        const offset = REGION_OFFSETS[team.region];
+                                                        const val = mode === 'release' ? (team.kills[gIdx] - offset) : team.kills[gIdx];
                                                         return (
-                                                            <div key={team.name} className={`flex-1 min-w-[100px] p-3 rounded-xl border transition-all ${isWinner ? 'border-slate-500 bg-slate-800/40 shadow-lg' : 'border-slate-800 bg-slate-950/50'}`}>
-                                                                <div className="text-[9px] font-black uppercase mb-1" style={{color: team.color}}>{team.name}</div>
-                                                                <div className="mono text-xs font-bold">{formatPreciseTime(time)}</div>
+                                                            <div key={team.name} className="flex-1 bg-slate-950 p-4 rounded-xl border border-slate-800 text-center">
+                                                                <div className="text-[9px] font-black uppercase mb-2" style={{color: team.color}}>{team.name}</div>
+                                                                <div className="mono text-xs font-bold">{formatDuration(val)}</div>
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
 
-                                                <div className="lg:w-1/5 text-right border-l border-slate-800 pl-6">
-                                                    <div className="text-[10px] text-slate-500 font-black uppercase">Pace Leader</div>
-                                                    <div className="text-sm font-black italic" style={{color: winner.color}}>{winner.name}</div>
+                                                <div className="lg:w-1/5 text-right flex flex-col items-end border-l border-slate-800 pl-6">
+                                                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">Fastest Kill</div>
+                                                    <div className="text-sm font-black italic tracking-tighter" style={{color: winner.color}}>{winner.name}</div>
                                                 </div>
                                             </div>
                                         );
