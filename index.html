@@ -21,7 +21,7 @@
     <script type="text/babel">
         const { useState } = React;
 
-        const SERVER_START_TIMES = { NA: "09:00", EU: "23:00" };
+        const SERVER_START_TIMES = { NA: "11:45", EU: "06:00" };
         const timeToMins = (str) => {
             const [h, m] = str.split(':').map(Number);
             return (h * 60) + m;
@@ -36,8 +36,8 @@
         ];
 
         const TEAMS = [
-            { name: "Liquid", region: "NA", color: "#ef4444", kills: [600, 1100, 1400, 1900, 2800, 3200, 4100, 4900, 5800] },
-            { name: "Echo", region: "EU", color: "#3b82f6", kills: [1500, 1600, 1850, 2400, 3100, 3500, 4200, 4950, 6000] },
+            { name: "Liquid", region: "NA", color: "#ef4444", kills: [600, 1100, 1400, 1900, 2800, 6287, 4100, 4900, 5800] },
+            { name: "Echo", region: "EU", color: "#3b82f6", kills: [1500, 1600, 1850, 2400, 3100, 3177, 4200, 4950, 6000] },
             { name: "Method", region: "EU", color: "#fbbf24", kills: [1520, 1650, 1900, 2500, 3200, 3600, 4400, 5100, 6200] }
         ];
 
